@@ -1,11 +1,11 @@
-import { Battery, MotionSensor, ScryptedDeviceBase, Setting, Settings, SettingValue } from '@scrypted/sdk';
+import { Battery, MotionSensor, OnOff, ScryptedDeviceBase, Setting, Settings, SettingValue } from '@scrypted/sdk';
 import { ArloDeviceProvider } from './main';
 
 import { DeviceSummary, DeviceStatus, DeviceRegistration, ChargerTech } from './base-station-api-client';
 
 const DEFAULT_MOTION_TIMEOUT = 10; // seconds
 
-export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, MotionSensor, Settings {
+export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, MotionSensor, Settings, OnOff {
     motionTimeout?: NodeJS.Timeout;
     deviceSummary: DeviceSummary;
     deviceRegistration: DeviceRegistration;
@@ -23,6 +23,12 @@ export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, Motio
             this.onStatusUpdated(deviceStatus)
         }
     }
+    async turnOff(): Promise<void> {
+        await this.provider.baseStationApiClient.disarm(this.deviceSummary.serial_number);
+    }
+    async turnOn(): Promise<void> {
+        await this.provider.baseStationApiClient.arm(this.deviceSummary.serial_number);
+    }
 
     onRegistrationUpdated(deviceRegistration: DeviceRegistration) {
         this.deviceRegistration = deviceRegistration;
@@ -31,7 +37,6 @@ export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, Motio
 
     onStatusUpdated(deviceStatus: DeviceStatus) {
         this.deviceStatus = deviceStatus;
-        this.batteryLevel = this.deviceStatus.BatPercent || this.deviceStatus.BatteryPercentage;
         // if the charger tech is present and includes QuickCharger or Regular, then we are externally powered
         const chargerTech = this.deviceStatus?.ChargerTech;
         this.externallyPowered = chargerTech != null && [ChargerTech.QuickCharger, ChargerTech.Regular, ChargerTech.VacCharger].includes(chargerTech);

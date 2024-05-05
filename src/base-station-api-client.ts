@@ -77,6 +77,18 @@ export class BaseStationApiClient {
         return response.data;
     }
 
+    public async arm(serialNumber: string){
+        return await this.sendRequest<GenericResponse>(`/device/${serialNumber}/arm`, 'post', 
+            {"PIRTargetState":"Armed","VideoMotionEstimationEnable":false,"AudioTargetState":"Armed"}
+        );        
+    }
+
+    public async disarm(serialNumber: string){
+        return await this.sendRequest<GenericResponse>(`/device/${serialNumber}/arm`, 'post', 
+            {"PIRTargetState":"Disarmed","VideoMotionEstimationEnable":false,"AudioTargetState":"Disarmed"}
+        )
+    };  
+
     private handleError(error: AxiosError) {
         if (error.response) {
             // Request made but the server responded with an error
