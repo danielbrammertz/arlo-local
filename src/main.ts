@@ -272,7 +272,8 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
 
     private static getDeviceInterfaces(deviceRegistration: DeviceRegistration | undefined, deviceStatus: DeviceStatus | undefined): string[] {
         let interfaces = [
-            ScryptedInterface.Settings
+            ScryptedInterface.Settings,
+            ScryptedInterface.OnOff
         ];
 
         for (const capability of deviceRegistration?.Capabilities ?? []) {
