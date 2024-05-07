@@ -1,11 +1,11 @@
-import { Battery, MotionSensor, OnOff, ScryptedDeviceBase, Setting, Settings, SettingValue } from '@scrypted/sdk';
+import { Battery, MotionSensor, OnOff, ScryptedDeviceBase, Setting, Settings, SettingValue, StartStop } from '@scrypted/sdk';
 import { ArloDeviceProvider } from './main';
 
 import { DeviceSummary, DeviceStatus, DeviceRegistration, ChargerTech } from './base-station-api-client';
 
 const DEFAULT_MOTION_TIMEOUT = 10; // seconds
 
-export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, MotionSensor, Settings, OnOff {
+export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, MotionSensor, Settings, OnOff, StartStop {
     motionTimeout?: NodeJS.Timeout;
     deviceSummary: DeviceSummary;
     deviceRegistration: DeviceRegistration;
@@ -23,10 +23,22 @@ export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, Motio
             this.onStatusUpdated(deviceStatus)
         }
     }
+    async start(): Promise<void> {
+        this.console.log('start');
+        await this.provider.baseStationApiClient.arm(this.deviceSummary.serial_number);
+
+    }
+    async stop(): Promise<void> {
+        this.console.log('stop');
+        await this.provider.baseStationApiClient.disarm(this.deviceSummary.serial_number);
+
+    }
     async turnOff(): Promise<void> {
+        this.console.log('turnOff');
         await this.provider.baseStationApiClient.disarm(this.deviceSummary.serial_number);
     }
     async turnOn(): Promise<void> {
+        this.console.log('turnOn');
         await this.provider.baseStationApiClient.arm(this.deviceSummary.serial_number);
     }
 
