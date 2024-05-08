@@ -237,15 +237,15 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
             providerNativeId: this.nativeId,
         },
         {
-            name:  'SSS' + arloRawDevice.deviceSummary.friendly_name,
-            nativeId: 'SSS' + arloRawDevice.deviceSummary.serial_number,
-            type: ScryptedDeviceType.SecuritySystem,
-            interfaces: [ScryptedInterface.SecuritySystem , ScryptedInterface.OnOff, ScryptedInterface.DeviceProvider],
+            name:  'SWITCH-' + arloRawDevice.deviceSummary.friendly_name,
+            nativeId: 'SWITCH-' + arloRawDevice.deviceSummary.serial_number,
+            type: ScryptedDeviceType.Switch,
+            interfaces: [ScryptedInterface.OnOff],
             info: {
                 firmware: arloRawDevice.deviceStatus?.SystemFirmwareVersion,
                 manufacturer: 'Arlo Technologies, Inc.',
-                model: 'SSS' + arloRawDevice.deviceRegistration?.SystemModelNumber,
-                serialNumber: 'SSS' + arloRawDevice.deviceStatus?.SystemSerialNumber,
+                model: 'SWITCH-' + arloRawDevice.deviceRegistration?.SystemModelNumber,
+                serialNumber: 'SWITCH-' + arloRawDevice.deviceStatus?.SystemSerialNumber,
                 version: arloRawDevice.deviceStatus?.HardwareRevision,
             },
             providerNativeId: this.nativeId,
@@ -267,7 +267,7 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
         this.console.log('GET DEVICE CALLED FOR ' + nativeId);
         if (this.arloDevices.has(nativeId))
             return this.arloDevices.get(nativeId);
-        const arloRawDevice = this.arloRawDevices.get(nativeId) ?? this.arloRawDevices.get(nativeId.slice(3));
+        const arloRawDevice = this.arloRawDevices.get(nativeId) ?? this.arloRawDevices.get(nativeId.slice('SWITCH-'.length));
         if (!arloRawDevice)
             throw new Error('device not found?');
 
@@ -276,7 +276,7 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
         const deviceStatus = arloRawDevice.deviceStatus;
         let retDevice: ScryptedDeviceBase;
         
-        if (nativeId.startsWith('SSS')) {
+        if (nativeId.startsWith('SWITCH')) {
             retDevice = new ArloSecuritySystem(this, nativeId, deviceSummary, deviceRegistration, deviceStatus);
         } else {
             const interfaces = ArloDeviceProvider.getDeviceInterfaces(deviceRegistration, deviceStatus);
