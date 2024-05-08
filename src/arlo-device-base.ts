@@ -5,7 +5,7 @@ import { DeviceSummary, DeviceStatus, DeviceRegistration, ChargerTech } from './
 
 const DEFAULT_MOTION_TIMEOUT = 10; // seconds
 
-export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, MotionSensor, Settings, OnOff, StartStop {
+export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, MotionSensor, Settings {
     motionTimeout?: NodeJS.Timeout;
     deviceSummary: DeviceSummary;
     deviceRegistration: DeviceRegistration;
@@ -23,25 +23,7 @@ export class ArloDeviceBase extends ScryptedDeviceBase implements Battery, Motio
             this.onStatusUpdated(deviceStatus)
         }
     }
-    async start(): Promise<void> {
-        this.console.log('start');
-        await this.provider.baseStationApiClient.arm(this.deviceSummary.serial_number);
-
-    }
-    async stop(): Promise<void> {
-        this.console.log('stop');
-        await this.provider.baseStationApiClient.disarm(this.deviceSummary.serial_number);
-
-    }
-    async turnOff(): Promise<void> {
-        this.console.log('turnOff');
-        await this.provider.baseStationApiClient.disarm(this.deviceSummary.serial_number);
-    }
-    async turnOn(): Promise<void> {
-        this.console.log('turnOn');
-        await this.provider.baseStationApiClient.arm(this.deviceSummary.serial_number);
-    }
-
+   
     onRegistrationUpdated(deviceRegistration: DeviceRegistration) {
         this.deviceRegistration = deviceRegistration;
         this.batteryLevel = this.deviceRegistration.BatPercent || this.deviceRegistration.BatteryPercentage;

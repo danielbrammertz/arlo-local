@@ -4,6 +4,7 @@ import { BaseStationApiClient, DeviceSummary, MotionDetectedEvent, DeviceStatus,
 import { ArloDeviceBase } from './arlo-device-base';
 import { ArloDoorbellDevice } from './doorbell';
 import { ArloCameraDevice } from './camera';
+import { ArloSecuritySystem } from './security-system';
 
 const { deviceManager } = sdk;
 const MOTION_SLUG = 'motionDetected';
@@ -13,7 +14,7 @@ const BUTTON_PRESS_SLUG = 'buttonPressed';
 
 class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, Settings, HttpRequestHandler {
     private arloRawDevices = new Map<string, ArloRawDevice>();
-    private arloDevices = new Map<string, ArloDeviceBase>();
+    private arloDevices = new Map<string, ScryptedDeviceBase>();
     baseStationApiClient?: BaseStationApiClient;
 
     constructor(nativeId?: string) {
@@ -103,7 +104,7 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
         if (request.url?.endsWith(MOTION_SLUG)) {
             const motionDetectedEvent: MotionDetectedEvent = JSON.parse(request.body);
             if (this.webhookEventIsValid(motionDetectedEvent, response)) {
-                (await this.getDevice(motionDetectedEvent.serial_number))?.onMotionDetected();
+                (await this.getDevice(motionDetectedEvent.serial_number) as ArloDeviceBase)?.onMotionDetected();
             } else {
                 return;
             }
@@ -111,7 +112,7 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
             const registeredEvent: RegisteredEvent = JSON.parse(request.body);
             if (this.webhookEventIsValid(registeredEvent, response)) {
                 const registration = JSON.parse(registeredEvent.registration);
-                (await this.getDevice(registeredEvent.serial_number))?.onRegistrationUpdated(registration);
+                (await this.getDevice(registeredEvent.serial_number) as ArloDeviceBase)?.onRegistrationUpdated(registration);
             } else {
                 return;
             }
@@ -119,7 +120,7 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
             const statusUpdatedEvent: StatusUpdatedEvent = JSON.parse(request.body);
             if (this.webhookEventIsValid(statusUpdatedEvent, response)) {
                 const status = JSON.parse(statusUpdatedEvent.status);
-                (await this.getDevice(statusUpdatedEvent.serial_number))?.onStatusUpdated(status);
+                (await this.getDevice(statusUpdatedEvent.serial_number) as ArloDeviceBase)?.onStatusUpdated(status);
             } else {
                 return;
             }
@@ -205,7 +206,7 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
 
             const arloRawDevice: ArloRawDevice = { deviceSummary, deviceRegistration, deviceStatus };
             this.arloRawDevices.set(deviceSummary.serial_number, arloRawDevice);
-            scryptedDevices.push(this.createScryptedDevice(arloRawDevice));
+            scryptedDevices.push(...this.createScryptedDevices(arloRawDevice));
 
             this.console.info(`Discovered device ${arloRawDevice.deviceSummary.serial_number}`);
         }));
@@ -218,10 +219,10 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
         this.console.log(`Discovered ${scryptedDevices.length} devices.`);
     }
 
-    createScryptedDevice(arloRawDevice: ArloRawDevice): Device {
+    createScryptedDevices(arloRawDevice: ArloRawDevice): Device[] {
         const interfaces = ArloDeviceProvider.getDeviceInterfaces(arloRawDevice.deviceRegistration, arloRawDevice.deviceStatus);
 
-        return {
+        return [{
             name: arloRawDevice.deviceSummary.friendly_name,
             nativeId: arloRawDevice.deviceSummary.serial_number,
             type: interfaces.includes(ScryptedInterface.VideoCamera) ? ScryptedDeviceType.Camera : ScryptedDeviceType.Sensor,
@@ -234,7 +235,22 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
                 version: arloRawDevice.deviceStatus?.HardwareRevision,
             },
             providerNativeId: this.nativeId,
-        };
+        },
+        {
+            name:  'SSS' + arloRawDevice.deviceSummary.friendly_name,
+            nativeId: 'SSS' + arloRawDevice.deviceSummary.serial_number,
+            type: ScryptedDeviceType.SecuritySystem,
+            interfaces: [ScryptedInterface.SecuritySystem , ScryptedInterface.OnOff, ScryptedInterface.DeviceProvider],
+            info: {
+                firmware: arloRawDevice.deviceStatus?.SystemFirmwareVersion,
+                manufacturer: 'Arlo Technologies, Inc.',
+                model: 'SSS' + arloRawDevice.deviceRegistration?.SystemModelNumber,
+                serialNumber: 'SSS' + arloRawDevice.deviceStatus?.SystemSerialNumber,
+                version: arloRawDevice.deviceStatus?.HardwareRevision,
+            },
+            providerNativeId: this.nativeId,
+        }
+    ];
     }
 
     /** DeviceProvider */
@@ -244,28 +260,36 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
         // Does nothing.
     }
 
+  
+
     // implement
-    async getDevice(nativeId: string): Promise<ArloDeviceBase | undefined> {
+    async getDevice(nativeId: string): Promise<ScryptedDeviceBase | undefined> {
+        this.console.log('GET DEVICE CALLED FOR ' + nativeId);
         if (this.arloDevices.has(nativeId))
             return this.arloDevices.get(nativeId);
-        const arloRawDevice = this.arloRawDevices.get(nativeId);
+        const arloRawDevice = this.arloRawDevices.get(nativeId) ?? this.arloRawDevices.get(nativeId.slice(3));
         if (!arloRawDevice)
             throw new Error('device not found?');
 
         const deviceSummary = arloRawDevice.deviceSummary;
         const deviceRegistration = arloRawDevice.deviceRegistration;
         const deviceStatus = arloRawDevice.deviceStatus;
-
-        const interfaces = ArloDeviceProvider.getDeviceInterfaces(deviceRegistration, deviceStatus);
-        let retDevice: ArloDeviceBase;
-        if (interfaces.includes(ScryptedInterface.BinarySensor)) {
-            retDevice = new ArloDoorbellDevice(this, nativeId, deviceSummary, deviceRegistration, deviceStatus);
-        } else if (interfaces.includes(ScryptedInterface.VideoCamera)) {
-            retDevice = new ArloCameraDevice(this, nativeId, deviceSummary, deviceRegistration, deviceStatus);
+        let retDevice: ScryptedDeviceBase;
+        
+        if (nativeId.startsWith('SSS')) {
+            retDevice = new ArloSecuritySystem(this, nativeId, deviceSummary, deviceRegistration, deviceStatus);
         } else {
-            throw new Error('unknown device type');
+            const interfaces = ArloDeviceProvider.getDeviceInterfaces(deviceRegistration, deviceStatus);
+        
+            if (interfaces.includes(ScryptedInterface.BinarySensor)) {
+                retDevice = new ArloDoorbellDevice(this, nativeId, deviceSummary, deviceRegistration, deviceStatus);
+            } else if (interfaces.includes(ScryptedInterface.VideoCamera)) {
+                retDevice = new ArloCameraDevice(this, nativeId, deviceSummary, deviceRegistration, deviceStatus);
+            } else {
+                throw new Error('unknown device type');
+            }
         }
-
+    
         this.arloDevices.set(nativeId, retDevice);
         return retDevice;
     }
@@ -273,8 +297,6 @@ class ArloDeviceProvider extends ScryptedDeviceBase implements DeviceProvider, S
     private static getDeviceInterfaces(deviceRegistration: DeviceRegistration | undefined, deviceStatus: DeviceStatus | undefined): string[] {
         let interfaces = [
             ScryptedInterface.Settings,
-            ScryptedInterface.OnOff,
-            ScryptedInterface.StartStop
         ];
 
         for (const capability of deviceRegistration?.Capabilities ?? []) {
@@ -314,3 +336,24 @@ class ArloRawDevice {
 export { ArloDeviceProvider };
 
 export default new ArloDeviceProvider();
+
+
+function createDebuggingProxy(obj) {
+    return new Proxy(obj, {
+        get(target, prop, receiver) {
+            console.log(`Accessed property ${String(prop)}`);
+            const original = Reflect.get(target, prop, receiver);
+            if (typeof original === 'function') {
+                return function(...args) {
+                    console.log(`Called function ${String(prop)} with arguments:`, args);
+                    return original.apply(this, args);
+                };
+            }
+            return original;
+        },
+        set(target, prop, value) {
+            console.log(`Set property ${String(prop)} to value:`, value);
+            return Reflect.set(target, prop, value);
+        }
+    });
+}
