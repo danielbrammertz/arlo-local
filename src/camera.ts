@@ -57,7 +57,7 @@ export class ArloCameraDevice extends ArloDeviceBase implements Camera, VideoCam
         this.console.debug(`${this.nativeId}: requesting snapshot`);
 
         // request a snapshot from the camera, if it's eligible
-        if (/*(this.isSnapshotEligible || this.externallyPowered) &&*/ this.provider.baseStationApiClient != null && this.nativeId != null) {
+        if ((this.isSnapshotEligible || this.externallyPowered) && this.provider.baseStationApiClient != null && this.nativeId != null) {
             const response = await this.provider.baseStationApiClient.postSnapshotRequest(this.nativeId);
             if (response != null && response.result) {
                 await sleep(500);

@@ -84,6 +84,7 @@ export class BaseStationApiClient {
     }
 
     public async disarm(serialNumber: string){
+        console.log("disarm");
         return await this.sendRequest<GenericResponse>(`/device/${serialNumber}/arm`, 'post', 
             {"PIRTargetState":"Disarmed","VideoMotionEstimationEnable":false,"AudioTargetState":"Disarmed"}
         )

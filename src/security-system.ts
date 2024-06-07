@@ -17,31 +17,25 @@ import {
 import { ArloDeviceProvider } from "./main";
 
 export class ArloSecuritySystem extends ScryptedDeviceBase implements OnOff {
+  deviceSummary: DeviceSummary;
+  deviceRegistration: DeviceRegistration;
 
   constructor(
     public provider: ArloDeviceProvider,
     nativeId: string,
-    private deviceSummary: DeviceSummary,
-    private deviceRegistration: DeviceRegistration | undefined,
+    deviceSummary: DeviceSummary,
+    deviceRegistration: DeviceRegistration | undefined,
     deviceStatus: DeviceStatus | undefined
   ) {
     super(nativeId);
   }
 
   async turnOff(): Promise<void> {
-    this.console.log("Turning off security system " +this.deviceSummary?.serial_number);
-	try{
-    await this.provider.baseStationApiClient.disarm(this.deviceSummary.serial_number);
-	}catch(e){
-		this.console.log(e);
-	}
+    this.console.log("Turning off security system");
+    this.provider.baseStationApiClient.disarm(this.deviceSummary.serial_number);
   }
   async turnOn(): Promise<void> {
-    this.console.log("Turning on security system " +this.deviceSummary?.serial_number);
-    try{
-	await this.provider.baseStationApiClient.arm(this.deviceSummary.serial_number);
-	}catch (e){
-		this.console.log(e);
-	}
+    this.console.log("Turning on security system");
+    this.provider.baseStationApiClient.arm(this.deviceSummary.serial_number);
   }
 }
